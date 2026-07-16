@@ -284,9 +284,14 @@ function spin(){
   const slice = 360/n;
   const winner = Math.floor(Math.random()*n);
   const turns = 5 + Math.floor(Math.random()*4);
-  // pointer at top. slice center for winner must land at top (0deg/-90).
+  // Centro del gajo del ganador, en grados horarios desde arriba (igual que en draw()).
   const targetCenter = winner*slice + slice/2;
-  const finalDeg = turns*360 + (360 - targetCenter) ;
+  // Para que ese centro acabe bajo la flecha (arriba), la rueda debe quedar en (360 - targetCenter) mod 360.
+  // Como el ángulo se ACUMULA entre tiradas, calculamos el giro relativo a la posición ACTUAL.
+  const current = ((angle % 360) + 360) % 360;
+  let delta = ((360 - targetCenter) - current) % 360;
+  if(delta < 0) delta += 360;
+  const finalDeg = turns*360 + delta;
   angle += finalDeg;
   canvas.style.transform = `rotate(${angle}deg)`;
   setTimeout(()=>{
