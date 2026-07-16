@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🍕 Ruleta Pizzera · España vs Argentina</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  :root{
+    --esp1:#c60b1e; --esp2:#ffc400;
+    --arg1:#74acdf; --arg2:#ffffff;
+  }
+  body{
+    font-family:"Segoe UI",system-ui,sans-serif;
+    min-height:100vh;
+    background:
+      radial-gradient(circle at 20% 10%, rgba(198,11,30,.35), transparent 40%),
+      radial-gradient(circle at 80% 15%, rgba(116,172,223,.4), transparent 40%),
+      linear-gradient(160deg,#0d1b2a,#1b263b 60%,#0d1b2a);
+    color:#fff;
+    display:flex; flex-direction:column; align-items:center;
+    padding:20px 14px 50px;
+    overflow-x:hidden;
+  }
+  h1{
+    font-size:clamp(1.6rem,6vw,2.8rem);
+    text-align:center; line-height:1.1;
+    text-shadow:0 3px 14px rgba(0,0,0,.5);
+    margin-bottom:2px;
+  }
+  h1 .vs{ color:var(--esp2); }
+  .sub{ opacity:.8; text-align:center; margin-bottom:18px; font-size:.95rem; }
+  .card{
+    background:rgba(255,255,255,.07);
+    border:1px solid rgba(255,255,255,.12);
+    backdrop-filter:blur(8px);
+    border-radius:22px;
+    padding:18px;
+    width:100%; max-width:460px;
+    box-shadow:0 20px 60px rgba(0,0,0,.4);
+  }
+  /* wheel */
+  .wheel-wrap{ position:relative; width:min(88vw,360px); aspect-ratio:1; margin:6px auto 10px; }
+  .pointer{
+    position:absolute; top:-6px; left:50%; transform:translateX(-50%);
+    font-size:2.4rem; z-index:5; filter:drop-shadow(0 3px 4px rgba(0,0,0,.5));
+    pointer-events:none;
+  }
+  canvas{
+    width:100%; height:100%;
+    border-radius:50%;
+    box-shadow:0 0 0 8px rgba(255,255,255,.9),0 0 0 14px #c60b1e,0 14px 40px rgba(0,0,0,.6);
+    transition:transform 5.2s cubic-bezier(.17,.67,.16,1);
+    cursor:pointer;
+  }
+  .hub{
+    position:absolute; top:50%; left:50%; width:54px; height:54px;
+    transform:translate(-50%,-50%);
+    background:radial-gradient(circle at 35% 30%,#fff,#e6c200);
+    border-radius:50%; z-index:4;
+    display:flex; align-items:center; justify-content:center;
+    font-size:1.6rem; box-shadow:0 4px 10px rgba(0,0,0,.5);
+    border:3px solid #fff;
+  }
+  .spinBtn{
+    display:block; width:100%; margin-top:6px;
+    padding:16px; border:none; border-radius:16px;
+    font-size:1.25rem; font-weight:800; letter-spacing:.5px;
+    color:#1b263b; cursor:pointer;
+    background:linear-gradient(90deg,var(--esp1),var(--esp2),var(--arg1));
+    background-size:200% 100%;
+    box-shadow:0 8px 22px rgba(0,0,0,.4);
+    transition:transform .1s, background-position .6s;
+  }
+  .spinBtn:hover{ background-position:100% 0; }
+  .spinBtn:active{ transform:scale(.97); }
+  .spinBtn:disabled{ opacity:.5; cursor:not-allowed; }
+  /* names */
+  #editor{ margin-top:16px; border-top:1px solid rgba(255,255,255,.12); padding-top:12px; }
+  .editHint{ font-size:.8rem; opacity:.6; margin-bottom:10px; text-align:center; }
+  .names{ display:flex; flex-direction:column; gap:8px; margin-top:8px; }
+  .nameRow{ display:flex; gap:8px; }
+  .nameRow input{
+    flex:1; padding:11px 12px; border-radius:12px; border:1px solid rgba(255,255,255,.2);
+    background:rgba(0,0,0,.25); color:#fff; font-size:1rem;
+  }
+  .nameRow input:focus{ outline:2px solid var(--esp2); }
+  .nameRow button{
+    border:none; border-radius:12px; padding:0 14px; font-size:1.2rem; cursor:pointer;
+    background:rgba(198,11,30,.8); color:#fff;
+  }
+  .addBtn{
+    margin-top:8px; width:100%; padding:11px; border-radius:12px; cursor:pointer;
+    border:1px dashed rgba(255,255,255,.35); background:transparent; color:#fff; font-size:1rem;
+  }
+  /* result modal */
+  .overlay{
+    position:fixed; inset:0; background:rgba(5,10,20,.82);
+    display:none; align-items:center; justify-content:center; z-index:50; padding:20px;
+    backdrop-filter:blur(4px);
+  }
+  .overlay.show{ display:flex; animation:fade .3s; }
+  @keyframes fade{ from{opacity:0} to{opacity:1} }
+  .resultBox{
+    background:linear-gradient(160deg,#1b263b,#0d1b2a);
+    border:2px solid var(--esp2);
+    border-radius:24px; padding:32px 26px; text-align:center; max-width:380px; width:100%;
+    box-shadow:0 20px 60px rgba(0,0,0,.6); animation:pop .4s cubic-bezier(.2,1.4,.4,1);
+  }
+  @keyframes pop{ from{transform:scale(.7);opacity:0} to{transform:scale(1);opacity:1} }
+  .resultBox .pizza{ font-size:4rem; }
+  .resultBox h2{ font-size:1.1rem; opacity:.85; margin:6px 0; font-weight:500; }
+  .resultBox .who{ font-size:2.4rem; font-weight:900; color:var(--esp2); margin:4px 0 14px; word-break:break-word; }
+  .resultBox p{ opacity:.8; font-size:.95rem; margin-bottom:20px; }
+  .resultBox button{
+    border:none; border-radius:14px; padding:13px 22px; font-size:1rem; font-weight:700;
+    cursor:pointer; background:var(--esp1); color:#fff; margin:0 5px;
+  }
+  .resultBox button.ghost{ background:rgba(255,255,255,.15); }
+  .foot{ margin-top:22px; opacity:.55; font-size:.8rem; text-align:center; }
+  #confetti{ position:fixed; inset:0; width:100%; height:100%; pointer-events:none; z-index:60; }
+
+  /* ---------- MÓVIL ---------- */
+  @media (max-width:520px){
+    body{ padding:14px 10px 40px; justify-content:flex-start; }
+    .card{ padding:14px; border-radius:18px; }
+    .wheel-wrap{ width:min(82vw,320px); }
+    .pointer{ font-size:2rem; top:-4px; }
+    .hub{ width:46px; height:46px; font-size:1.4rem; }
+    .spinBtn{ padding:18px; font-size:1.3rem; }   /* dedo grande */
+    .sub{ font-size:.85rem; margin-bottom:14px; }
+    .resultBox{ padding:26px 20px; }
+    .resultBox .pizza{ font-size:3.2rem; }
+    .resultBox .who{ font-size:2rem; }
+    .resultBox button{ padding:14px 18px; }
+    .nameRow input{ padding:13px 12px; font-size:16px; } /* 16px evita zoom iOS */
+  }
+  @media (max-height:680px) and (max-width:520px){
+    .wheel-wrap{ width:min(66vw,260px); }
+  }
+</style>
+</head>
+<body>
+  <h1 id="title">🍕 Ruleta Pizzera</h1>
+  <div class="sub">🇪🇸 España <span class="vs">vs</span> Argentina 🇦🇷 · ¿Quién baja a por las pizzas?</div>
+
+  <div class="card">
+    <div class="wheel-wrap">
+      <div class="pointer">🔻</div>
+      <canvas id="wheel" width="600" height="600"></canvas>
+      <div class="hub">🍕</div>
+    </div>
+    <button class="spinBtn" id="spin">¡GIRAR!</button>
+
+    <div id="editor" hidden>
+      <div class="editHint">🔒 Editor secreto (toca 5 veces el título para ocultar)</div>
+      <div class="names" id="names"></div>
+      <button class="addBtn" id="add">+ Añadir amigo</button>
+    </div>
+  </div>
+
+  <div class="foot">Domingo de final. Que gane el mejor... y que baje el que diga la ruleta 😎</div>
+
+  <canvas id="confetti"></canvas>
+
+  <div class="overlay" id="overlay">
+    <div class="resultBox">
+      <div class="pizza">🍕😭</div>
+      <h2>¡ENHORABUENA!</h2>
+      <div class="who" id="who">—</div>
+      <p>TE HA TOCADO LLORAR PARA RECIBIR BIZUMS 💸😭</p>
+      <button id="again">Otra vez</button>
+      <button class="ghost" id="close">Cerrar</button>
+    </div>
+  </div>
+
+<script>
+/* ---------- SONIDO (WebAudio, sin ficheros) ---------- */
+let AC=null;
+function ac(){ if(!AC) AC=new (window.AudioContext||window.webkitAudioContext)(); if(AC.state==='suspended') AC.resume(); return AC; }
+function tick(){
+  const c=ac(), o=c.createOscillator(), g=c.createGain();
+  o.type='square'; o.frequency.value=900;
+  g.gain.setValueAtTime(.0001,c.currentTime);
+  g.gain.exponentialRampToValueAtTime(.12,c.currentTime+.005);
+  g.gain.exponentialRampToValueAtTime(.0001,c.currentTime+.06);
+  o.connect(g).connect(c.destination); o.start(); o.stop(c.currentTime+.07);
+}
+function fanfare(){
+  const c=ac(); const notes=[523,659,784,1047]; // do mi sol do
+  notes.forEach((f,i)=>{
+    const o=c.createOscillator(), g=c.createGain();
+    o.type='triangle'; o.frequency.value=f;
+    const t=c.currentTime+i*.13;
+    g.gain.setValueAtTime(.0001,t);
+    g.gain.exponentialRampToValueAtTime(.25,t+.03);
+    g.gain.exponentialRampToValueAtTime(.0001,t+.35);
+    o.connect(g).connect(c.destination); o.start(t); o.stop(t+.4);
+  });
+}
+let tickTimer=null;
+function startTicks(){
+  let delay=60; const t0=performance.now();
+  (function loop(){
+    tick();
+    const el=performance.now()-t0;
+    delay = 60 + (el/5300)*260; // se va frenando
+    if(el<5200) tickTimer=setTimeout(loop,delay);
+  })();
+}
+function stopTicks(){ if(tickTimer) clearTimeout(tickTimer); }
+
+/* ---------- CONFETI ---------- */
+const cf=document.getElementById('confetti'), cfx=cf.getContext('2d');
+let parts=[], cfRAF=null;
+function sizeCf(){ cf.width=innerWidth; cf.height=innerHeight; }
+sizeCf(); addEventListener('resize',sizeCf);
+const CFCOL=["#c60b1e","#ffc400","#74acdf","#ffffff","#e63946","#2ecc71"];
+function boom(){
+  for(let i=0;i<160;i++){
+    parts.push({
+      x:innerWidth/2, y:innerHeight/2.4,
+      vx:(Math.random()-.5)*14, vy:Math.random()*-15-4,
+      g:.35+Math.random()*.2, s:6+Math.random()*8,
+      rot:Math.random()*6, vr:(Math.random()-.5)*.4,
+      c:CFCOL[Math.floor(Math.random()*CFCOL.length)], life:1
+    });
+  }
+  if(!cfRAF) animCf();
+}
+function animCf(){
+  cfx.clearRect(0,0,cf.width,cf.height);
+  parts.forEach(p=>{
+    p.vy+=p.g; p.x+=p.vx; p.y+=p.vy; p.rot+=p.vr; p.life-=.006;
+    cfx.save(); cfx.translate(p.x,p.y); cfx.rotate(p.rot); cfx.globalAlpha=Math.max(p.life,0);
+    cfx.fillStyle=p.c; cfx.fillRect(-p.s/2,-p.s/2,p.s,p.s*.6); cfx.restore();
+  });
+  parts=parts.filter(p=>p.life>0 && p.y<cf.height+40);
+  if(parts.length){ cfRAF=requestAnimationFrame(animCf); } else { cfRAF=null; cfx.clearRect(0,0,cf.width,cf.height); }
+}
+
+const COLORS = ["#c60b1e","#ffc400","#74acdf","#ffffff","#e63946","#f1c40f","#457b9d","#e0e0e0"];
+let players = ["JULIO","GIGI","MADA","ANGEL","PELAO","MARIO","PABLO","CAP","ADRI","FERNI"];
+
+const canvas = document.getElementById('wheel');
+const ctx = canvas.getContext('2d');
+const R = 300;
+let angle = 0, spinning = false;
+
+function draw(){
+  const n = players.length;
+  const slice = 2*Math.PI/n;
+  ctx.clearRect(0,0,600,600);
+  for(let i=0;i<n;i++){
+    const start = i*slice - Math.PI/2;
+    ctx.beginPath();
+    ctx.moveTo(R,R);
+    ctx.arc(R,R,R,start,start+slice);
+    ctx.closePath();
+    ctx.fillStyle = COLORS[i%COLORS.length];
+    ctx.fill();
+    ctx.strokeStyle = "rgba(0,0,0,.15)"; ctx.lineWidth=2; ctx.stroke();
+    // text
+    ctx.save();
+    ctx.translate(R,R);
+    ctx.rotate(start+slice/2);
+    ctx.textAlign="right";
+    ctx.fillStyle = (COLORS[i%COLORS.length]==="#ffffff"||COLORS[i%COLORS.length]==="#ffc400"||COLORS[i%COLORS.length]==="#f1c40f"||COLORS[i%COLORS.length]==="#e0e0e0")?"#1b263b":"#fff";
+    ctx.font = "bold "+(n>8?22:28)+"px Segoe UI, sans-serif";
+    ctx.fillText(players[i].slice(0,14), R-24, 8);
+    ctx.restore();
+  }
+}
+
+function spin(){
+  if(spinning || players.length<2) return;
+  spinning = true;
+  document.getElementById('spin').disabled = true;
+  ac(); startTicks();
+  const n = players.length;
+  const slice = 360/n;
+  const winner = Math.floor(Math.random()*n);
+  const turns = 5 + Math.floor(Math.random()*4);
+  // pointer at top. slice center for winner must land at top (0deg/-90).
+  const targetCenter = winner*slice + slice/2;
+  const finalDeg = turns*360 + (360 - targetCenter) ;
+  angle += finalDeg;
+  canvas.style.transform = `rotate(${angle}deg)`;
+  setTimeout(()=>{
+    stopTicks(); fanfare(); boom();
+    document.getElementById('who').textContent = players[winner];
+    document.getElementById('overlay').classList.add('show');
+    spinning = false;
+    document.getElementById('spin').disabled = false;
+  },5300);
+}
+
+// names UI
+const namesDiv = document.getElementById('names');
+function renderNames(){
+  namesDiv.innerHTML='';
+  players.forEach((p,i)=>{
+    const row=document.createElement('div');
+    row.className='nameRow';
+    row.innerHTML=`<input value="${p.replace(/"/g,'&quot;')}" data-i="${i}"><button data-del="${i}">✕</button>`;
+    namesDiv.appendChild(row);
+  });
+}
+namesDiv.addEventListener('input',e=>{
+  const i=e.target.dataset.i;
+  if(i!==undefined){ players[i]=e.target.value; draw(); }
+});
+namesDiv.addEventListener('click',e=>{
+  const d=e.target.dataset.del;
+  if(d!==undefined && players.length>2){ players.splice(d,1); renderNames(); draw(); }
+});
+document.getElementById('add').onclick=()=>{
+  players.push("Amigo "+(players.length+1));
+  renderNames(); draw();
+};
+
+/* editor secreto: 5 toques al título */
+let taps=0, tapTimer=null;
+document.getElementById('title').addEventListener('click',()=>{
+  taps++;
+  clearTimeout(tapTimer);
+  tapTimer=setTimeout(()=>taps=0,1200);
+  if(taps>=5){
+    taps=0;
+    const ed=document.getElementById('editor');
+    ed.hidden=!ed.hidden;
+    if(!ed.hidden) ed.scrollIntoView({behavior:'smooth'});
+  }
+});
+
+document.getElementById('spin').onclick=spin;
+canvas.onclick=spin;
+document.getElementById('again').onclick=()=>{ document.getElementById('overlay').classList.remove('show'); };
+document.getElementById('close').onclick=()=>{ document.getElementById('overlay').classList.remove('show'); };
+
+renderNames();
+draw();
+</script>
+</body>
+</html>
